@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <link rel="icon" href="../../image/Anyscale.png" type="image/x-icon">
+    
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="style_mobile.css">
+    <link rel="stylesheet" href="style_pc.css">
+</head>
+<body>
+<div id="page" class="site">
+    <div class="container">
+        <div class="login">
+            <div class="hero">
+               
+                <h1 ><br>Law AI</h1>
+                <p>如果你没有账号<br>可以<a href="../register/register.html">点击这里</a>进行注册.</p>
+            </div>
+            <div class="main">
+
+                <form id="login-form" method="POST" action="">
+                    <p>
+                        <input type="email" placeholder="邮箱或者用户名">
+                    </p>
+                    <p class="password">
+                        <input type="password" placeholder="密码" data-password="password">
+                        
+                        <a href="#">找回密码</a>
+                    </p>
+                    <p>
+                        <input type="submit" class="submit" value="登录">
+                    </p>
+                </form>
+                <div class="options">
+                    <div class="separator">
+                        <p>使用其他方式登录</p>
+                    </div>
+                    <ul>
+                        <li><a href="#"><i class="ri-wechat-fill ri-2x"></i></a></li>
+                        <li><a href="#"><i class="ri-qq-fill ri-2x"></i></a></li>
+                        <li><a href="#"><i class="ri-steam-fill ri-2x"></i></a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qs/dist/qs.js"></script>
+<script>
+    document.getElementById('login-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.querySelector('input[type="email"]').value;
+        const password = document.querySelector('input[type="password"]').value;
+        console.log('邮箱:', email);
+        console.log('密码:', password);
+
+
+        async function login() {
+        try {
+            const response = await axios.post(
+                'http://127.0.0.1:3000/api/auth/login',
+                Qs.stringify({ email, password }),
+                { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+            );
+            
+            console.log('*****************************');
+            console.log('登录状态:', response.data.status);
+            console.log('登录消息:', response.data.message);
+            console.log('用户信息:', response.data.user);
+            console.log('JWT令牌:', response.data.token);
+            console.log('*****************************');
+
+            if (response.data.status === 200) {
+                
+                // 存储JWT令牌到本地存储
+                localStorage.setItem('token', response.data.token);
+                window.location.href = '../../index.html';
+            } else {
+                alert('登录失败: ' + response.data.msg);
+            }
+        } catch (error) {
+            console.error('请求失败:', error);
+        }
+        }
+        login();
+
+        
+    });
+
+
+// 记住我的密码 没实现
+
+// const rememberMeCheckbox = document.getElementById('remember-me');
+const usernameInput = document.querySelector('input[type="email"]');
+const passwordInput = document.querySelector('input[type="password"]');
+
+// 检查是否有存储的用户名和密码
+const storedUsername = localStorage.getItem('username');
+const storedPassword = localStorage.getItem('password');
+
+if (storedUsername && storedPassword) {
+    usernameInput.value = storedUsername;
+    passwordInput.value = storedPassword;
+    
+}
+
+// 登录表单提交时处理
+document.getElementById('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const email = usernameInput.value;
+    const password = passwordInput.value;
+    const rememberMe = rememberMeCheckbox.checked;
+
+    if (rememberMe) {
+        localStorage.setItem('username', email);
+        localStorage.setItem('password', password);
+    } else {
+        localStorage.removeItem('username');
+        localStorage.removeItem('password');
+    }
+});
+
+
+
+
+
+
+        // 监听ESC键
+        document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+        // 返回首页
+            window.location.href = '../../index.html';
+    }
+});
+
+</script>
+</html>
