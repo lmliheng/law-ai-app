@@ -1,0 +1,146 @@
+<!-- 不建议使用 -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 悬浮球 Demo</title>
+    <style>
+        /* CSS样式定义悬浮球的外观和页面布局 */
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .instruction {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .ball {
+            width: 50px;
+            height: 50px;
+            background-color: #ff4500;
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            /* 添加一些动画效果，使其更平滑 */
+            transition: all 0.3s ease;
+        }
+
+        .ball:hover {
+            transform: scale(1.1);
+        }
+
+        .demo-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            border: 1px dashed #ccc;
+            background-color: #fff;
+            overflow: hidden;
+        }
+
+        .code-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #ff4500;
+        }
+
+        .code-container h3 {
+            margin-top: 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="instruction">
+            <h1>HTML5 悬浮球交互演示</h1>
+            <p>这是一个基于CSS和JavaScript实现的悬浮球示例。您可以通过以下步骤体验其功能：</p>
+            <p>1. 在下方灰色区域内，您会看到一个橙红色的悬浮球。</p>
+            <p>2. 将鼠标移动到球上，按下左键并拖动，即可移动悬浮球的位置。</p>
+            <p>3. 松开鼠标左键，停止拖动。</p>
+        </div>
+
+        <div class="demo-container">
+            <!-- 悬浮球元素 -->
+            <div class="ball" id="floatingBall"></div>
+        </div>
+
+        <div class="code-container">
+            <h3>核心交互逻辑 (JavaScript)</h3>
+            <p>此部分代码通过监听鼠标事件来实现悬浮球的拖拽功能。核心逻辑包括：在<strong>mousedown</strong>事件中记录初始偏移量，在<strong>mousemove</strong>事件中根据鼠标位置更新小球位置，在<strong>mouseup</strong>事件中结束拖拽。</p>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript实现悬浮球的拖拽功能
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const ball = document.getElementById('floatingBall');
+            const container = document.querySelector('.demo-container');
+
+            // 初始化球的位置到容器中心
+            ball.style.left = `${container.offsetWidth / 2 - ball.offsetWidth / 2}px`;
+            ball.style.top = `${container.offsetHeight / 2 - ball.offsetHeight / 2}px`;
+
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            // 鼠标按下事件：开始拖拽
+            ball.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                // 计算鼠标相对于小球左上角的偏移
+                offsetX = e.clientX - ball.getBoundingClientRect().left;
+                offsetY = e.clientY - ball.getBoundingClientRect().top;
+                ball.style.transition = 'none'; // 拖拽时移除动画，使移动更跟手
+                e.preventDefault(); // 防止文本选中等默认行为
+            });
+
+            // 鼠标移动事件：更新小球位置
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    // 计算小球相对于容器的新位置
+                    let newLeft = e.clientX - containerRect.left - offsetX;
+                    let newTop = e.clientY - containerRect.top - offsetY;
+
+                    // 边界约束，确保小球不会拖出容器
+                    newLeft = Math.max(0, Math.min(newLeft, containerRect.width - ball.offsetWidth));
+                    newTop = Math.max(0, Math.min(newTop, containerRect.height - ball.offsetHeight));
+
+                    ball.style.left = `${newLeft}px`;
+                    ball.style.top = `${newTop}px`;
+                }
+            });
+
+            // 鼠标松开事件：结束拖拽
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    ball.style.transition = 'all 0.3s'; // 恢复动画效果
+                }
+            });
+
+            // 防止在球上松开鼠标时，触发容器的其他事件（可选）
+            ball.addEventListener('mouseup', (e) => {
+                e.stopPropagation();
+            });
+        });
+    </script>
+</body>
+</html>

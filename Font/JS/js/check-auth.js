@@ -24,7 +24,7 @@ async function checkAuth() {
             console.log("data.username:", data.user);
             
             // 更新登录按钮为用户头像
-            updateLoginButton(data.user[0].useravatar);
+            updateLoginButton(data.user[0].useravatar,data.user[0].username);
             
         } else {
             console.log('用户信息存在，但token不存在');
@@ -39,7 +39,7 @@ async function checkAuth() {
 
 
 // 更新页面
-function updateLoginButton(useravatar) {
+function updateLoginButton(useravatar,username) {
 
   const token = localStorage.getItem('token');
     
@@ -53,6 +53,7 @@ function updateLoginButton(useravatar) {
             <div class="user-info">
                 <div class="username-container">
                     <img src="./image/${useravatar}" alt="用户头像" class="user-avatar">
+                    <span class="username">${username}</span>
                     <div class="user-menu">
                         <ul>
                             <li><a href="./model/myInfo/myInfo.html">账号设置</a></li>
