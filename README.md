@@ -19,6 +19,19 @@
 ![image](image/2.png)
 ![image](image/3.png)
 
+### 本地部署
+前提：
+1. 安装好Node.js和npm
+2. 安装好MySQL数据库
+
+1. Mysql运行这个sql语句`Back/node/sql/law_ai_app_2026-03-16_192511.sql`
+2. 运行Node.js项目
+```
+cd Back/node
+npm install
+npm start
+```
+3. 运行前端项目直接在浏览器打开`Font/JS/index.html`
 
 
 ### 1. 智能体开发
