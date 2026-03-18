@@ -4,14 +4,9 @@
 
 本项目是一个面向法律领域的智能化应用系统，旨在通过人工智能技术提升法律工作的效率和质量。系统集成了智能体开发、工具应用和系统解决方案三大核心能力，为法律从业者、企业和个人用户提供全方位的智能化法律服务。
 
-### 同款应用
-1. https://law.baidu.com/ 对话工具
-2. https://hao.solegal.cn/ 法律导航
-
-### 数据支持
-1. https://flk.npc.gov.cn/index 国家法律法规数据库
-
-
+### API支持 应用参考
+得理：https://www.delilegal.com/
+腾讯元器：https://yuanqi.tencent.com/
 
 ## 应用功能
 ### Image
