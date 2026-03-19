@@ -4,9 +4,17 @@
 
 本项目是一个面向法律领域的智能化应用系统，旨在通过人工智能技术提升法律工作的效率和质量。系统集成了智能体开发、工具应用和系统解决方案三大核心能力，为法律从业者、企业和个人用户提供全方位的智能化法律服务。
 
-### API支持 应用参考
-得理：https://www.delilegal.com/
-腾讯元器：https://yuanqi.tencent.com/
+### 同款应用
+1. https://law.baidu.com/ 对话工具
+2. https://hao.solegal.cn/ 法律导航
+
+### 数据支持
+1. https://flk.npc.gov.cn/index 国家法律法规数据库
+
+
+### API支持 / 应用参考
+- 得理：`https://www.delilegal.com/`
+- 腾讯元器：`https://yuanqi.tencent.com/`
 
 ## 应用功能
 ### Image
@@ -16,17 +24,103 @@
 
 ### 本地部署
 前提：
-1. 安装好Node.js和npm
-2. 安装好MySQL数据库
+1. 安装好 Node.js 和 npm
+2. 安装好 MySQL 数据库
 
-1. Mysql运行这个sql语句`Back/node/sql/law_ai_app_2026-03-16_192511.sql`
-2. 运行Node.js项目
+#### 1) 导入数据库
+1. 新建数据库（示例名：`law_ai_app`）
+2. 导入 SQL 文件（注意：SQL 文件实际路径在 `Back/node/data/sql/`）
+   - SQL 文件：`Back/node/data/sql/law_ai_app_2026-03-16_192511.sql`
+   - Windows 下推荐在 MySQL 客户端执行：
+
+```sql
+USE law_ai_app;
+SOURCE d:/zhuomian/law-ai-app-main/Back/node/data/sql/law_ai_app_2026-03-16_192511.sql;
 ```
+
+#### 2) 启动后端（Node.js）
+进入后端目录并安装依赖、启动服务：
+
+```bash
 cd Back/node
 npm install
 npm start
 ```
-3. 运行前端项目直接在浏览器打开`Font/JS/index.html`
+
+后端启动后默认端口为 `3000`，可访问 `http://127.0.0.1:3000/` 验证。
+
+#### 3) 配置环境变量（.env）
+编辑 `Back/node/.env`，至少需要正确配置 MySQL：
+
+- `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME`
+
+如果你要用“得理 / 腾讯元器”能力，还需要配置：
+
+- **得理开放平台**（后端代理调用，避免前端泄露密钥）
+  - `DELI_APPID`
+  - `DELI_SECRET`
+- **腾讯元器智能体 API**（推荐方案：本项目 → 元器智能体（工作流里调用得理））
+  - `YUANQI_ASSISTANT_ID`：智能体 appid（不是体验链接）
+  - `YUANQI_APPKEY`：API 管理里生成的 appkey
+  - `YUANQI_API_BASE`：默认 `https://yuanqi.tencent.com`
+
+修改 `.env` 后需要重启 `npm start` 才会生效。
+
+#### 4) 启动前端（静态站点）
+前端在 `Font/JS/`，建议用本地静态服务器启动（避免跨域/`file://` 的限制）：
+
+```bash
+cd Font/JS
+npx http-server -p 8000
+```
+
+浏览器打开：
+- `http://127.0.0.1:8000/index.html`
+
+问答页面入口：
+- `Font/JS/model/chat/chat.html`
+
+#### 5) 接口自测
+**测试腾讯元器**（本机后端转发到元器）：
+
+PowerShell 示例：
+
+```powershell
+$body = @{ query = "上下班途中车祸是否属于工伤？请结合类案和法规给出分析"; user_id="test" } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/yuanqi/chat" -ContentType "application/json" -Body $body
+```
+
+**测试得理**（本机后端直连得理）：
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/deli/cases" -ContentType "application/json" -Body '{"query":"工伤 交通事故 案例"}'
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/deli/laws"  -ContentType "application/json" -Body '{"query":"工伤保险条例 适用"}'
+```
+
+---
+
+### 得理 / 腾讯元器接入说明（本项目已集成）
+本项目后端新增了两个代理模块：
+
+1. **得理开放平台代理**
+   - 路由前缀：`/api/deli`
+   - 类案检索：`POST /api/deli/cases`
+   - 法规检索：`POST /api/deli/laws`
+   - 配置：`.env` 中 `DELI_APPID`、`DELI_SECRET`
+
+2. **腾讯元器智能体代理（推荐）**
+   - 路由前缀：`/api/yuanqi`
+   - 对话：`POST /api/yuanqi/chat`
+   - 配置：`.env` 中 `YUANQI_ASSISTANT_ID`、`YUANQI_APPKEY`（可选 `YUANQI_API_BASE`）
+   - 推荐做法：把“得理类案/法规检索 + 总结输出”的工作流做在元器智能体中，本项目只负责调用元器 API。
+
+### 前端改动说明
+为适配“腾讯元器”调用方式，新增了一个简单问答页：
+- `Font/JS/model/chat/chat.html`
+- `Font/JS/model/chat/chat.js`
+- `Font/JS/model/chat/chat.css`
+
+首页 `Font/JS/index.html` 已将导航指向该问答页，并移除原 Coze SDK 的直接加载引用（避免混用）。
 
 
 ### 1. 智能体开发

@@ -26,7 +26,23 @@ app.use(bodyParser.urlencoded({
 // 1. 确保启用 CORS
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000']
+  // 说明：前端可能通过本地静态服务器(8000)或 file:// 打开（origin 会是 null）
+  // 兼容 file:// 打开时 origin 为 null
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    const allow = new Set([
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:8000',
+      'http://127.0.0.1:8000'
+    ]);
+    return cb(null, allow.has(origin));
+  },
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 
@@ -96,6 +112,8 @@ async function startServer() {
   const wordRoutes = require('./routes/word');
   const searchRoutes = require('./routes/search');
   const updataInfoRoutes = require('./routes/updata_info');
+  const deliRoutes = require('./routes/deli');
+  const yuanqiRoutes = require('./routes/yuanqi');
   app.use('/api/auth', authRoutes);
   app.use('/api/upload', uploadRoutes);
   app.use('/api/rankings', rankingsRoutes);
@@ -103,6 +121,8 @@ async function startServer() {
   app.use('/api/Onlyword', wordRoutes);
   app.use('/api/info', updataInfoRoutes);
   app.use('/api/search', searchRoutes);
+  app.use('/api/deli', deliRoutes);
+  app.use('/api/yuanqi', yuanqiRoutes);
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

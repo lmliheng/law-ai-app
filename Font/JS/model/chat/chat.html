@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>问答（腾讯元器）</title>
+  <link rel="stylesheet" href="chat.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="../../index.html">← 返回首页</a>
+    <div class="title">法律问答（腾讯元器）</div>
+  </header>
+
+  <main class="wrap">
+    <section id="messages" class="messages" aria-live="polite"></section>
+
+    <section class="composer">
+      <textarea id="input" rows="3" placeholder="输入你的问题，例如：上下班途中车祸是否属于工伤？请结合类案与法规分析"></textarea>
+      <div class="actions">
+        <button id="sendBtn">发送</button>
+      </div>
+      <div class="hint">
+        后端接口：<code>POST /api/yuanqi/chat</code>（由本机 Node 转发到元器）
+      </div>
+    </section>
+  </main>
+
+  <script src="chat.js"></script>
+</body>
+</html>
+
