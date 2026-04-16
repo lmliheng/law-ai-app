@@ -28,7 +28,7 @@ const API_CONFIG = reactive({
   appkey: 'YRsdNKlaJJU5YibO0OGbYzKWwaklOKSn',
   appid: '2035707181828373248',
   apiUrl: 'https://yuanqi.tencent.com/openapi/v1/agent/chat/completions',
-  stream: false
+  stream: true
 })
 
 // 滚动到底部
