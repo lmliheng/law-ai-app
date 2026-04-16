@@ -49,7 +49,9 @@
 
       <!-- 输入区域 -->
       <footer class="input-area">
+
         <div class="input-wrapper neumorphic-input-wrapper">
+
           <textarea
             v-model="userInput"
             @input="autoResize"
@@ -58,14 +60,18 @@
             rows="1"
             ref="textareaRef"
           ></textarea>
+
           <button 
             @click="handleSend"
             :disabled="!userInput.trim() || isLoading"
             class="send-button neumorphic-button"
           >
+          
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
+
+
           </button>
         </div>
 
@@ -78,6 +84,8 @@
           >
             {{ hint }}
           </div>
+
+
         </div>
         
       
