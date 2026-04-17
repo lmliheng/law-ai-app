@@ -17,6 +17,7 @@ const conversationHistory = ref([])
 // const sidebarCollapsed = ref(false)
 const chatHistory = ref([])
 const currentChatIndex = ref(0)
+const showClearDialog = ref(false)
 
 // 切换侧边栏
 const toggleSidebar = () => {
@@ -238,10 +239,25 @@ const loadChat = (index) => {
 
 // 清空对话
 const clearChat = () => {
-  if (confirm('确定要清空当前对话吗？')) {
-    messages.value = []
-    initWelcome()
-  }
+  showClearDialog.value = true
+}
+
+const confirmClearChat = () => {
+  showClearDialog.value = false
+  const welcomeMsg = [{
+    role: 'assistant',
+    content: md.render('👋 您好！我是您的AI法律助手，有任何法律问题都可以向我咨询~\n\n我可以帮您：\n- 解答劳动纠纷、合同问题等法律咨询\n- 分析案件风险和诉讼策略\n- 提供法律文书撰写建议')
+  }]
+  messages.value = welcomeMsg
+  nextTick(() => {
+    if (msgRef.value) {
+      msgRef.value.scrollTop = msgRef.value.scrollHeight
+    }
+  })
+}
+
+const cancelClearChat = () => {
+  showClearDialog.value = false
 }
 
 // 导出对话记录
@@ -429,6 +445,28 @@ const handleNonStreamResponse = async (response, currentUserMessage) => {
 const resetState = () => {
   loading.value = false
   isThinking.value = false
+  
+  // AI 回复完成后，自动保存到历史
+  const hasUserMessage = messages.value.some(m => m.role === 'user')
+  if (hasUserMessage) {
+    const lastUserMsg = messages.value.filter(m => m.role === 'user').pop()
+    const title = lastUserMsg ? lastUserMsg.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').slice(0, 20).trim() || '新对话' : '新对话'
+    
+    if (currentChatIndex.value >= 0 && chatHistory.value[currentChatIndex.value]) {
+      chatHistory.value[currentChatIndex.value] = {
+        title,
+        messages: [...messages.value]
+      }
+    } else {
+      chatHistory.value.unshift({
+        title,
+        messages: [...messages.value]
+      })
+      currentChatIndex.value = 0
+    }
+    saveHistoryToStorage()
+  }
+  
   if (textareaRef.value) {
     textareaRef.value.focus()
   }
@@ -444,6 +482,25 @@ onMounted(() => {
 
 <template>
   <div class="chat-page">
+    <!-- 清空对话确认对话框 -->
+    <div v-if="showClearDialog" class="dialog-overlay" @click="cancelClearChat">
+      <div class="dialog-content" @click.stop>
+        <div class="dialog-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3 class="dialog-title">清空对话</h3>
+        <p class="dialog-message">确定要清空当前对话吗？此操作不可恢复。</p>
+        <div class="dialog-actions">
+          <button class="dialog-btn cancel" @click="cancelClearChat">取消</button>
+          <button class="dialog-btn confirm" @click="confirmClearChat">确定清空</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 侧边栏 -->
     <aside class="sidebar" :class="{ collapsed: chatStore.sidebarCollapsed }">
       <div class="sidebar-header">
@@ -530,19 +587,24 @@ onMounted(() => {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
+
               <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                 <path d="M2 17l10 5 10-5"></path>
                 <path d="M2 12l10 5 10-5"></path>
               </svg>
+              
             </div>
+            <!-- 气泡框 -->
             <div class="message-bubble">
-              <div class="message-role">{{ msg.role === 'user' ? '你' : 'AI法律助手' }}</div>
+              <div class="message-role">{{ msg.role === 'user' ? '' : 'AI法律助手' }}</div>
+
               <div class="message-content" v-html="msg.content"></div>
             </div>
+
           </div>
-          
-          <div v-if="isThinking && !loading" class="message-wrapper assistant">
+          <!-- 思考中的提示 -->
+          <div v-if="isThinking" class="message-wrapper assistant">
             <div class="avatar">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
@@ -889,8 +951,8 @@ onMounted(() => {
 }
 
 .message-wrapper.user .message-bubble {
-  background: #3b82f6;
-  color: #fff;
+  background: #eaebee;
+  
 }
 
 .message-role {
@@ -923,29 +985,39 @@ onMounted(() => {
 .loading-bubble {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   color: #666666;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  border: 1px solid #e0e4e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .loading-dots {
   display: flex;
-  gap: 4px;
+  gap: 5px;
 }
 
 .loading-dots span {
-  width: 6px;
-  height: 6px;
-  background: #9ca3af;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
+  animation: pulse 1.4s infinite ease-in-out both;
+  box-shadow: 0 0 6px rgba(102, 126, 234, 0.4);
 }
 
 .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
 .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
 
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+@keyframes pulse {
+  0%, 80%, 100% { 
+    transform: scale(0.6); 
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1); 
+    opacity: 1;
+  }
 }
 
 /* 错误提示 */
@@ -1258,5 +1330,114 @@ onMounted(() => {
   .new-chat-btn {
     min-height: 40px;
   }
+}
+
+/* 对话框样式 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog-content {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  width: 90%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dialog-icon {
+  margin-bottom: 16px;
+}
+
+.dialog-icon svg {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.dialog-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333333;
+}
+
+.dialog-message {
+  margin: 0 0 28px;
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.6;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.dialog-btn {
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.dialog-btn.cancel {
+  background: #f5f5f5;
+  color: #666666;
+}
+
+.dialog-btn.cancel:hover {
+  background: #e8e8e8;
+  transform: translateY(-1px);
+}
+
+.dialog-btn.confirm {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  color: #ffffff;
+}
+
+.dialog-btn.confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
+}
+
+.dialog-btn.confirm:active {
+  transform: translateY(0);
 }
 </style>
