@@ -158,6 +158,29 @@ const initWelcome = () => {
   }]
 }
 
+// 示例案例数据
+const sampleCases = [
+  {
+    title: '案例一：单方面降薪',
+    content: '公司单方面邮件通知全员降薪20%并取消绩效'
+  },
+  {
+    title: '案例二：外卖骑手封号',
+    content: '全职外卖骑手被平台以违规为由封号收入断绝'
+  },
+  {
+    title: '案例三：劳动法类案检索',
+    content: '请检索劳动法领域的类案'
+  }
+]
+
+// 随机使用对话案例
+const useRandomCase = () => {
+  const randomIndex = Math.floor(Math.random() * sampleCases.length)
+  const selectedCase = sampleCases[randomIndex]
+  inputMsg.value = selectedCase.content
+}
+
 // 从localStorage加载历史记录
 const loadHistoryFromStorage = () => {
   try {
@@ -513,7 +536,7 @@ onMounted(() => {
         </button>
         <button class="collapse-btn" @click="toggleSidebar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline v-if="sidebarCollapsed" points="9 18 15 12 9 6"></polyline>
+            <polyline v-if="chatStore.sidebarCollapsed" points="9 18 15 12 9 6"></polyline>
             <polyline v-else points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
@@ -631,6 +654,8 @@ onMounted(() => {
 
           <div class="my_input_container">
 
+
+
 <!-- 模仿的腾讯元宝输入框 -->
           <div class="input-container-box">
             <textarea
@@ -645,29 +670,35 @@ onMounted(() => {
           </div>
 
          <div class="send-container-box">
-          <input 
-              type="file" 
-              ref="fileInput" 
+            <input
+              type="file"
+              ref="fileInput"
               @change="handleFileSelect"
               accept=".docx,.pdf,.txt,.md"
               style="display: none"
             >
 
-          <button class="attach-btn" @click="triggerFileUpload" title="上传文件" :disabled="loading">
+            <button class="attach-btn" @click="triggerFileUpload" title="上传文件" :disabled="loading">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
               </svg>
             </button>
 
             <button class="send-btn" @click="sendMessage" :disabled="loading || !inputMsg.trim()">
-         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              <span class="btn-text"></span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
             </button>
 
-</div>
+            <button class="sample-case-btn" @click="useRandomCase">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              随机案例
+            </button>
+          </div>
             
           </div>
           <div class="input-hint">按 Enter 发送，Shift + Enter 换行 · 支持上传 .docx/.pdf/.txt 文件</div>
@@ -1128,6 +1159,33 @@ onMounted(() => {
 .send-btn:disabled {
   background: #93c5fd;
   cursor: not-allowed;
+}
+
+.sample-case-btn {
+  margin-right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.sample-case-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.sample-case-btn svg {
+  flex-shrink: 0;
 }
 
 .input-hint {

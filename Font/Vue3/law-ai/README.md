@@ -21,3 +21,10 @@ AI 回复中 (流式输出到 messages.value)
 下次打开页面 → loadHistoryFromStorage() 读取历史记录
 
 7. 思考中 提示  solved
+
+
+
+
+
+
+

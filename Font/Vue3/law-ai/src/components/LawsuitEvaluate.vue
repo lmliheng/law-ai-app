@@ -75,53 +75,45 @@ const submitAnalysis = async () => {
   loading.value = true
   
   try {
-    const query = `
-案件类型：${formData.caseType} / ${formData.caseCategory}
-原告/申请人：${formData.plaintiff || '未填写'}
-被告/被申请人：${formData.defendant || '未填写'}
-争议焦点：${formData.disputeFocus}
-案情描述：${formData.caseDescription}
-证据清单：${formData.evidence.map(e => `${e.name}(${e.type},${e.effect})`).join('; ') || '无'}
-证据效力说明：${formData.evidenceNote || '无'}
-核心诉求：${formData.coreClaims}
-期望结果：${formData.expectedResult || '未填写'}
-补充说明：${formData.additionalInfo || '无'}
-    `.trim()
+    const query = `(工作) ${formData.disputeFocus}`
     
-    const response = await api.post('/api/yuanqi/chat', {
-      message: `请对以下案件进行全面分析，返回JSON格式结果：
-
-${query}
-
-请从以下六个维度生成完整的案件分析报告（必须严格JSON格式）：
-1. legalRelationship: 案件核心法律关系梳理（法律关系定性、主体分析、权利义务关系）
-2. evidenceAnalysis: 现有证据的优势与不足分析
-3. riskPrediction: 潜在法律风险与争议点预判
-4. strategy: 最优维权/应对策略建议
-5. solutionComparison: 不同解决方案（协商/调解/诉讼）的利弊对比
-6. complexity: 案件复杂度评估（简单/中等/复杂）
-7. cost: 预估处理成本
-8. duration: 预估处理周期
-
-返回格式（必须严格JSON格式）：
-{
-  "legalRelationship": "分析内容...",
-  "evidenceAnalysis": "分析内容...",
-  "riskPrediction": "分析内容...",
-  "strategy": "分析内容...",
-  "solutionComparison": "分析内容...",
-  "complexity": "简单/中等/复杂",
-  "cost": "预估成本",
-  "duration": "预估周期"
-}`,
-      history: []
+    const response = await axios.post(API_CONFIG.apiUrl, {
+      assistant_id: API_CONFIG.appid,
+      user_id: "user_" + Date.now(),
+      stream: false,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: query
+            }
+          ]
+        }
+      ]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API_CONFIG.appkey
+      }
     })
     
-    // 尝试解析JSON
+    const answerText = response.data.choices[0].message.content
+    
+    console.log('===== 案件分析 接口返回内容 =====')
+    console.log('完整响应:', response.data)
+    console.log('answerText:', answerText)
+    
     try {
-      const jsonMatch = response.data.answer.match(/\{[\s\S]*\}/)
+      const jsonMatch = answerText.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
-        analysisResult.value = JSON.parse(jsonMatch[0])
+        const parsedData = JSON.parse(jsonMatch[0])
+        if (parsedData.data) {
+          analysisResult.value = parsedData.data
+        } else {
+          analysisResult.value = parsedData
+        }
       } else {
         analysisResult.value = generateMockResult()
       }
@@ -514,7 +506,7 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                 </div>
                 <div class="card-info">
                   <span class="card-label">案件复杂度</span>
-                  <span class="card-value">{{ analysisResult.complexity || '待评估' }}</span>
+                  <span class="card-value">{{ analysisResult.riskAssessment?.level || '待评估' }}</span>
                 </div>
               </div>
 
@@ -525,8 +517,8 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                   </svg>
                 </div>
                 <div class="card-info">
-                  <span class="card-label">预估处理成本</span>
-                  <span class="card-value">{{ analysisResult.cost || '待评估' }}</span>
+                  <span class="card-label">法律依据</span>
+                  <span class="card-value">依据充分</span>
                 </div>
               </div>
 
@@ -538,8 +530,8 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                   </svg>
                 </div>
                 <div class="card-info">
-                  <span class="card-label">预估处理周期</span>
-                  <span class="card-value">{{ analysisResult.duration || '待评估' }}</span>
+                  <span class="card-label">胜诉概率</span>
+                  <span class="card-value">{{ analysisResult.riskAssessment?.probability || '待评估' }}</span>
                 </div>
               </div>
             </div>
@@ -551,9 +543,34 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"></path>
                 </svg>
-                案件核心法律关系梳理
+                案件摘要
               </h3>
-              <div class="section-content" v-html="formatContent(analysisResult.legalRelationship)"></div>
+              <div class="section-content">{{ analysisResult.caseSummary || '' }}</div>
+            </div>
+
+            <div class="result-section">
+              <h3 class="section-title legal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                事实时间线
+              </h3>
+              <div class="section-content">
+                <ul v-if="analysisResult.factTimeline && analysisResult.factTimeline.length">
+                  <li v-for="(item, idx) in analysisResult.factTimeline" :key="idx">{{ item }}</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="result-section">
+              <h3 class="section-title legal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"></path>
+                </svg>
+                法律关系
+              </h3>
+              <div class="section-content">{{ analysisResult.legalRelationship || '' }}</div>
             </div>
 
             <div class="result-section">
@@ -562,9 +579,13 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                   <path d="M9 11l3 3L22 4"></path>
                   <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
                 </svg>
-                现有证据的优势与不足分析
+                核心争议点
               </h3>
-              <div class="section-content" v-html="formatContent(analysisResult.evidenceAnalysis)"></div>
+              <div class="section-content">
+                <ul v-if="analysisResult.coreIssues && analysisResult.coreIssues.length">
+                  <li v-for="(item, idx) in analysisResult.coreIssues" :key="idx">{{ item }}</li>
+                </ul>
+              </div>
             </div>
 
             <div class="result-section">
@@ -574,9 +595,15 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                   <line x1="12" y1="9" x2="12" y2="13"></line>
                   <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
-                潜在法律风险与争议点预判
+                风险评估
               </h3>
-              <div class="section-content" v-html="formatContent(analysisResult.riskPrediction)"></div>
+              <div class="section-content">
+                <div class="risk-info">
+                  <p><strong>风险等级：</strong>{{ analysisResult.riskAssessment?.level || '' }}</p>
+                  <p><strong>法律依据：</strong>{{ analysisResult.riskAssessment?.basis || '' }}</p>
+                  <p><strong>胜诉概率：</strong>{{ analysisResult.riskAssessment?.probability || '' }}</p>
+                </div>
+              </div>
             </div>
 
             <div class="result-section">
@@ -584,21 +611,13 @@ ${analysisResult.value.solutionComparison?.replace(/<[^>]*>/g, '') || '无'}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
-                最优维权/应对策略建议
+                建议措施
               </h3>
-              <div class="section-content" v-html="formatContent(analysisResult.strategy)"></div>
-            </div>
-
-            <div class="result-section">
-              <h3 class="section-title compare">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="20" x2="18" y2="10"></line>
-                  <line x1="12" y1="20" x2="12" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-                不同解决方案的利弊对比
-              </h3>
-              <div class="section-content" v-html="formatContent(analysisResult.solutionComparison)"></div>
+              <div class="section-content">
+                <ul v-if="analysisResult.recommendedActions && analysisResult.recommendedActions.length">
+                  <li v-for="(item, idx) in analysisResult.recommendedActions" :key="idx">{{ item }}</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
   <div class="case-page">
     <div class="page-header">
       <h1 class="page-title">类案检索</h1>
-      <p class="page-desc">输入案件信息，AI智能检索相似案例并分析裁判要点</p>
+      <p class="page-desc">输入案件关键词，智能检索相似案例并分析裁判要点</p>
     </div>
 
     <div class="case-layout">
@@ -18,57 +18,47 @@
 
         <div class="search-form">
           <div class="form-field">
-            <label class="field-label">案件关键词</label>
-            <input 
-              v-model="searchParams.keywords" 
+            <label class="field-label">关键词（多个用逗号分隔）</label>
+            <input
+              v-model="keywordInput"
               class="field-input"
-              placeholder="例如：劳动纠纷、经济补偿"
+              placeholder="例如：劳动纠纷,经济补偿,加班费"
             >
           </div>
 
           <div class="form-field">
-            <label class="field-label">案由</label>
-            <select v-model="searchParams.caseType" class="field-input">
-              <option value="">全部</option>
-              <option value="labor">劳动争议</option>
-              <option value="contract">合同纠纷</option>
-              <option value="property">财产纠纷</option>
-              <option value="tort">侵权责任</option>
-              <option value="marriage">婚姻家庭</option>
-              <option value="criminal">刑事案件</option>
+            <label class="field-label">案件起始年份</label>
+            <input
+              v-model="searchParams.caseYearStart"
+              type="date"
+              class="field-input"
+            >
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">案件结束年份</label>
+            <input
+              v-model="searchParams.caseYearEnd"
+              type="date"
+              class="field-input"
+            >
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">每页显示数量</label>
+            <select v-model="searchParams.pageSize" class="field-input">
+              <option :value="3">3条</option>
+              <option :value="5">5条</option>
+              <option :value="10">10条</option>
+              <option :value="20">20条</option>
             </select>
           </div>
 
           <div class="form-field">
-            <label class="field-label">案情描述</label>
-            <textarea 
-              v-model="searchParams.description" 
-              class="field-input textarea"
-              placeholder="详细描述案件情况..."
-              rows="4"
-            ></textarea>
-          </div>
-
-          <div class="form-field">
-            <label class="field-label">裁判年份</label>
-            <select v-model="searchParams.year" class="field-input">
-              <option value="">不限</option>
-              <option value="2024">2024年</option>
-              <option value="2023">2023年</option>
-              <option value="2022">2022年</option>
-              <option value="2021">2021年</option>
-              <option value="2020">2020年</option>
-            </select>
-          </div>
-
-          <div class="form-field">
-            <label class="field-label">法院层级</label>
-            <select v-model="searchParams.courtLevel" class="field-input">
-              <option value="">不限</option>
-              <option value="supreme">最高人民法院</option>
-              <option value="high">高级人民法院</option>
-              <option value="middle">中级人民法院</option>
-              <option value="basic">基层人民法院</option>
+            <label class="field-label">排序方式</label>
+            <select v-model="searchParams.sortOrder" class="field-input">
+              <option value="desc">相关性降序</option>
+              <option value="asc">相关性升序</option>
             </select>
           </div>
 
@@ -82,10 +72,15 @@
           </button>
         </div>
 
-        <!-- 当前案件信息 -->
-        <div v-if="searchParams.description" class="current-case">
-          <div class="current-case-title">当前案件</div>
-          <div class="current-case-content">{{ searchParams.description.slice(0, 100) }}...</div>
+        <!-- 分页信息 -->
+        <div v-if="totalResults > 0" class="pagination-info">
+          <div class="info-title">检索结果</div>
+          <div class="info-content">
+            共找到 <strong>{{ totalResults }}</strong> 条相似案例
+          </div>
+          <div class="info-content" v-if="totalPages > 1">
+            第 {{ searchParams.pageNo }} / {{ totalPages }} 页
+          </div>
         </div>
       </aside>
 
@@ -110,79 +105,85 @@
         <!-- 检索结果 -->
         <div v-else-if="caseResults.length > 0" class="results">
           <div class="results-header">
-            <span class="results-count">找到 {{ caseResults.length }} 个相似案例</span>
+            <span class="results-count">找到 {{ totalResults }} 个相似案例</span>
             <div class="results-actions">
-              <button class="action-btn" @click="compareCases">
+              <button class="action-btn" @click="prevPage" :disabled="searchParams.pageNo <= 1">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
+                  <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
-                类案对比
+                上一页
+              </button>
+              <button class="action-btn" @click="nextPage" :disabled="searchParams.pageNo >= totalPages">
+                下一页
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
               </button>
             </div>
           </div>
 
-          <!-- 类案列表 -->
-          <div class="case-list">
-            <div 
-              v-for="(c, index) in caseResults" 
-              :key="index"
-              class="case-card"
-              :class="{ selected: selectedCases.includes(index) }"
-              @click="selectCase(index)"
-            >
-              <div class="case-header">
-                <div class="case-checkbox">
-                  <input type="checkbox" :checked="selectedCases.includes(index)" @click.stop>
+          <!-- 案例列表（可滚动） -->
+          <div class="case-list-wrapper">
+            <div class="case-list">
+              <div
+                v-for="(c, index) in caseResults"
+                :key="index"
+                class="case-card"
+                :class="{ selected: selectedCases.includes(index) }"
+                @click="selectCase(index)"
+              >
+                <div class="case-header">
+                  <div class="case-checkbox">
+                    <input type="checkbox" :checked="selectedCases.includes(index)" @click.stop>
+                  </div>
+                  <div class="case-info">
+                    <span class="case-number">{{ c.caseNumber || '暂无案号' }}</span>
+                    <span class="court-name">{{ c.court || '暂无法院信息' }}</span>
+                  </div>
+                  <span class="case-date">{{ c.judgementDate || '' }}</span>
                 </div>
-                <div class="case-info">
-                  <span class="case-number">{{ c.caseNumber }}</span>
-                  <span class="case-date">{{ c.date }}</span>
-                </div>
-                <span class="case-similarity">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                  {{ c.similarity }}% 相似
-                </span>
-              </div>
 
-              <div class="case-body">
-                <div class="case-type">
-                  <span class="type-badge">{{ c.caseType }}</span>
-                  <span class="court-name">{{ c.court }}</span>
+                <div class="case-body">
+                  <div class="case-type">
+                    <span class="type-badge">{{ c.caseType || '' }}</span>
+                    <span class="type-badge cause" v-if="c.cause">{{ c.cause }}</span>
+                  </div>
+                  <div class="case-title" v-html="c.title || '暂无案件标题'"></div>
+                  <div class="case-summary" v-html="c.content || '暂无案件内容'"></div>
                 </div>
-                <div class="case-title">{{ c.title }}</div>
-                <div class="case-summary">{{ c.summary }}</div>
-              </div>
 
-              <div class="case-footer">
-                <button class="detail-btn" @click.stop="showCaseDetail(index)">
-                  查看详情
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                  </svg>
-                </button>
+                <div class="case-footer">
+                  <button class="detail-btn" @click.stop="showCaseDetail(c)">
+                    查看详情
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- 分页控件 -->
+          <div class="pagination-controls" v-if="totalPages > 1">
+            <button class="page-btn" @click="goToPage(1)" :disabled="searchParams.pageNo <= 1">首页</button>
+            <button class="page-btn" @click="prevPage" :disabled="searchParams.pageNo <= 1">上一页</button>
+            <span class="page-info">{{ searchParams.pageNo }} / {{ totalPages }}</span>
+            <button class="page-btn" @click="nextPage" :disabled="searchParams.pageNo >= totalPages">下一页</button>
+            <button class="page-btn" @click="goToPage(totalPages)" :disabled="searchParams.pageNo >= totalPages">尾页</button>
+          </div>
         </div>
 
-        <!-- 相似度分析 -->
-        <div v-if="analysisResult" class="analysis-section">
-          <div class="analysis-header">
-            <h3 class="analysis-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-              相似度分析报告
-            </h3>
-          </div>
-          <div class="analysis-content" v-html="analysisResult"></div>
+        <!-- 无结果状态 -->
+        <div v-else-if="searched && !loading" class="empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            <line x1="8" y1="8" x2="14" y2="14"></line>
+            <line x1="14" y1="8" x2="8" y2="14"></line>
+          </svg>
+          <h3>未找到相似案例</h3>
+          <p>请尝试调整关键词或时间范围</p>
         </div>
       </main>
     </div>
@@ -191,7 +192,7 @@
     <div v-if="detailCase" class="modal-overlay" @click="detailCase = null">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>{{ detailCase.title }}</h2>
+          <h2 v-html="detailCase.title || '案件详情'"></h2>
           <button class="modal-close" @click="detailCase = null">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -201,26 +202,74 @@
         </div>
         <div class="modal-body">
           <div class="detail-meta">
-            <span class="meta-item">案号：{{ detailCase.caseNumber }}</span>
-            <span class="meta-item">法院：{{ detailCase.court }}</span>
-            <span class="meta-item">日期：{{ detailCase.date }}</span>
+            <span class="meta-item">案号：{{ detailCase.caseNumber || '暂无' }}</span>
+            <span class="meta-item">法院：{{ detailCase.court || '暂无' }}</span>
+            <span class="meta-item">判决日期：{{ detailCase.judgementDate || '暂无' }}</span>
           </div>
-          <div class="detail-section">
-            <h4>案情摘要</h4>
-            <p>{{ detailCase.summary }}</p>
+          <div class="detail-section" v-if="detailCase.caseType">
+            <h4>案件类型</h4>
+            <p>{{ detailCase.caseType }}</p>
           </div>
-          <div class="detail-section">
-            <h4>裁判要点</h4>
-            <p>{{ detailCase.keyPoints }}</p>
+          <div class="detail-section" v-if="detailCase.cause">
+            <h4>案由</h4>
+            <p>{{ detailCase.cause }}</p>
           </div>
-          <div class="detail-section">
-            <h4>裁判结果</h4>
-            <p>{{ detailCase.result }}</p>
+          <div class="detail-section" v-if="detailCase.levelOfTrial">
+            <h4>审理级别</h4>
+            <p>{{ detailCase.levelOfTrial }}</p>
           </div>
-          <div class="detail-section">
-            <h4>完整判决书</h4>
-            <div class="judgment-text">{{ detailCase.judgment }}</div>
+          <div class="detail-section" v-if="detailCase.judgementType">
+            <h4>裁判类型</h4>
+            <p>{{ detailCase.judgementType }}</p>
           </div>
+          <div class="detail-section" v-if="detailCase.publishTypeName">
+            <h4>发布类型</h4>
+            <p>{{ detailCase.publishTypeName }}</p>
+          </div>
+          <div class="detail-section" v-if="detailCase.content">
+            <h4>案件内容</h4>
+            <div class="case-content" v-html="detailCase.content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 检索反馈对话框 -->
+    <div v-if="showFeedback" class="modal-overlay" @click="showFeedback = false">
+      <div class="modal-content feedback-modal" @click.stop>
+        <div class="modal-header">
+          <h2>检索结果</h2>
+          <button class="modal-close" @click="showFeedback = false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="feedback-icon" :class="feedbackType">
+            <svg v-if="feedbackType === 'success'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <svg v-else-if="feedbackType === 'error'" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <svg v-else width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <p class="feedback-message">{{ feedbackMessage }}</p>
+          <div v-if="totalResults > 0" class="feedback-count">
+            共找到 <strong>{{ totalResults }}</strong> 条相似案例
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="dialog-btn primary" @click="showFeedback = false">确定</button>
         </div>
       </div>
     </div>
@@ -228,22 +277,34 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import axios from 'axios'
+
+const API_URL = 'https://openapi.delilegal.com/api/qa/v3/search/queryListCase'
+const APP_ID = 'QthdBErlyaYvyXul'
+const SECRET = 'EC5D455E6BD348CE8E18BE05926D2EBE'
 
 const loading = ref(false)
 const searched = ref(false)
+const showFeedback = ref(false)
+const feedbackMessage = ref('')
+const feedbackType = ref('info')
+const keywordInput = ref('')
 const searchParams = reactive({
-  keywords: '',
-  caseType: '',
-  description: '',
-  year: '',
-  courtLevel: ''
+  pageNo: 1,
+  pageSize: 3,
+  sortField: 'correlation',
+  sortOrder: 'desc',
+  caseYearStart: '2012-01-01',
+  caseYearEnd: new Date().toISOString().slice(0, 10),
+  keywordArr: []
 })
+
 const caseResults = ref([])
 const selectedCases = ref([])
 const detailCase = ref(null)
-const analysisResult = ref('')
+const totalResults = ref(0)
+const totalPages = computed(() => Math.ceil(totalResults.value / searchParams.pageSize) || 1)
 
 const api = axios.create({
   baseURL: '',
@@ -251,88 +312,161 @@ const api = axios.create({
 })
 
 const searchCases = async () => {
-  if (!searchParams.keywords && !searchParams.description) {
-    alert('请至少填写关键词或案情描述')
+  if (!keywordInput.value.trim()) {
+    feedbackMessage.value = '请至少输入一个关键词'
+    feedbackType.value = 'warning'
+    showFeedback.value = true
     return
   }
 
-  loading.value = true
+  searchParams.keywordArr = keywordInput.value.split(',').map(k => k.trim()).filter(k => k)
+  if (searchParams.keywordArr.length === 0) {
+    feedbackMessage.value = '请至少输入一个有效的关键词'
+    feedbackType.value = 'warning'
+    showFeedback.value = true
+    return
+  }
+
+  searchParams.pageNo = 1
   searched.value = true
-  analysisResult.value = ''
-  
+  selectedCases.value = []
+
+  loading.value = true
+
   try {
-    const query = `
-关键词：${searchParams.keywords}
-案由：${searchParams.caseType}
-案情描述：${searchParams.description}
-裁判年份：${searchParams.year}
-法院层级：${searchParams.courtLevel}
-    `.trim()
-    
-    const response = await api.post('/api/yuanqi/chat', {
-      message: `请根据以下条件检索类案并返回JSON格式结果：\n${query}\n\n返回格式示例：\n[{"caseNumber":"(2023)沪01民终1234号","caseType":"劳动争议","court":"上海市第一中级人民法院","date":"2023-05-15","title":"某公司违法解除劳动合同案","summary":"...","keyPoints":"...","result":"...","judgment":"...","similarity":85}]`,
-      history: []
-    })
-    
-    // 尝试解析JSON结果
-    try {
-      const jsonMatch = response.data.answer.match(/\[[\s\S]*\]/)
-      if (jsonMatch) {
-        caseResults.value = JSON.parse(jsonMatch[0])
-      } else {
-        // 如果无法解析JSON，生成模拟数据
-        caseResults.value = generateMockCases()
+    const requestData = {
+      pageNo: searchParams.pageNo,
+      pageSize: searchParams.pageSize,
+      sortField: searchParams.sortField,
+      sortOrder: searchParams.sortOrder,
+      condition: {
+        keywordArr: searchParams.keywordArr
       }
-    } catch {
-      caseResults.value = generateMockCases()
     }
+
+    if (searchParams.caseYearStart) {
+      requestData.condition.caseYearStart = searchParams.caseYearStart
+    }
+    if (searchParams.caseYearEnd) {
+      requestData.condition.caseYearEnd = searchParams.caseYearEnd
+    }
+
+    const response = await api.post(API_URL, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'appid': APP_ID,
+        'secret': SECRET
+      }
+    })
+
+    console.log('===== 类案检索 API 返回 =====')
+    console.log('response:', response)
+
+    if (response.data && response.data.body && response.data.body.data) {
+      caseResults.value = response.data.body.data || []
+      totalResults.value = response.data.body.totalCount || caseResults.value.length
+      totalPages.value = response.data.body.totalPage || 1
+    } else if (response.data && response.data.body && Array.isArray(response.data.body)) {
+      caseResults.value = response.data.body
+      totalResults.value = response.data.body.length
+    } else if (Array.isArray(response.data)) {
+      caseResults.value = response.data
+      totalResults.value = response.data.length
+    } else {
+      caseResults.value = []
+      totalResults.value = 0
+    }
+
+    if (caseResults.value.length > 0) {
+      feedbackMessage.value = '检索成功！'
+      feedbackType.value = 'success'
+    } else {
+      feedbackMessage.value = '未找到相似案例，请尝试调整关键词或时间范围'
+      feedbackType.value = 'warning'
+    }
+    showFeedback.value = true
   } catch (error) {
     console.error('检索失败:', error)
-    caseResults.value = generateMockCases()
+    caseResults.value = []
+    totalResults.value = 0
+    feedbackMessage.value = '检索失败，请检查网络连接或稍后重试'
+    feedbackType.value = 'error'
+    showFeedback.value = true
   } finally {
     loading.value = false
   }
 }
 
-const generateMockCases = () => {
-  return [
-    {
-      caseNumber: '(2023)沪01民终1234号',
-      caseType: '劳动争议',
-      court: '上海市第一中级人民法院',
-      date: '2023-08-15',
-      title: '某科技公司违法解除劳动合同案',
-      summary: '原告张某与被告某科技公司签订劳动合同，约定合同期限为三年。合同履行期间，被告以业务调整为由单方解除劳动合同，未支付经济补偿金。',
-      keyPoints: '用人单位单方解除劳动合同应当符合法律规定，未与劳动者协商一致且无正当理由的，属于违法解除，应当支付经济赔偿金。',
-      result: '判决被告支付违法解除劳动合同赔偿金12万元',
-      judgment: '本院认为，根据《劳动合同法》相关规定，用人单位违法解除劳动合同的，应当依照经济补偿标准的二倍向劳动者支付赔偿金...',
-      similarity: 92
-    },
-    {
-      caseNumber: '(2023)粤03民终5678号',
-      caseType: '劳动争议',
-      court: '广东省深圳市中级人民法院',
-      date: '2023-06-20',
-      title: '未签订书面劳动合同二倍工资案',
-      summary: '原告李某于2022年3月入职被告公司，双方未签订书面劳动合同。原告在职期间，被告未为其缴纳社会保险。',
-      keyPoints: '用人单位自用工之日起超过一个月不满一年未与劳动者订立书面劳动合同的，应当向劳动者每月支付二倍的工资。',
-      result: '判决被告支付未签订书面劳动合同二倍工资差额8.5万元',
-      judgment: '本院认为，根据《劳动合同法》第十条、第八十二条之规定，建立劳动关系，应当订立书面劳动合同...',
-      similarity: 85
-    },
-    {
-      caseNumber: '(2022)京02民终9012号',
-      caseType: '劳动争议',
-      court: '北京市第二中级人民法院',
-      date: '2022-11-10',
-      title: '工伤保险待遇纠纷案',
-      summary: '原告王某在被告公司工作期间因工负伤，经鉴定为九级伤残。被告未依法为原告缴纳工伤保险，拒绝支付工伤保险待遇。',
-      keyPoints: '用人单位应当依法为劳动者缴纳工伤保险费，职工因工作原因受到事故伤害的，依法享受工伤保险待遇。',
-      result: '判决被告支付工伤保险待遇共计15万元',
-      judgment: '本院认为，根据《工伤保险条例》相关规定，职工因工负伤享受工伤保险待遇，用人单位未缴纳工伤保险的，由用人单位支付...',
-      similarity: 78
+const prevPage = () => {
+  if (searchParams.pageNo > 1) {
+    searchParams.pageNo--
+    performSearch()
+  }
+}
+
+const nextPage = () => {
+  if (searchParams.pageNo < totalPages.value) {
+    searchParams.pageNo++
+    performSearch()
+  }
+}
+
+const goToPage = (page) => {
+  searchParams.pageNo = page
+  performSearch()
+}
+
+const performSearch = async () => {
+  loading.value = true
+  selectedCases.value = []
+
+  try {
+    const requestData = {
+      pageNo: searchParams.pageNo,
+      pageSize: searchParams.pageSize,
+      sortField: searchParams.sortField,
+      sortOrder: searchParams.sortOrder,
+      condition: {
+        keywordArr: searchParams.keywordArr
+      }
     }
-  ]
+
+    if (searchParams.caseYearStart) {
+      requestData.condition.caseYearStart = searchParams.caseYearStart
+    }
+    if (searchParams.caseYearEnd) {
+      requestData.condition.caseYearEnd = searchParams.caseYearEnd
+    }
+
+    const response = await api.post(API_URL, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'appid': APP_ID,
+        'secret': SECRET
+      }
+    })
+
+    if (response.data && response.data.body && response.data.body.data) {
+      caseResults.value = response.data.body.data || []
+      totalResults.value = response.data.body.totalCount || caseResults.value.length
+      totalPages.value = response.data.body.totalPage || 1
+    } else if (response.data && response.data.body && Array.isArray(response.data.body)) {
+      caseResults.value = response.data.body
+      totalResults.value = response.data.body.length
+    } else if (Array.isArray(response.data)) {
+      caseResults.value = response.data
+      totalResults.value = response.data.length
+    } else {
+      caseResults.value = []
+      totalResults.value = 0
+    }
+  } catch (error) {
+    console.error('检索失败:', error)
+    caseResults.value = []
+    totalResults.value = 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const selectCase = (index) => {
@@ -348,32 +482,8 @@ const selectCase = (index) => {
   }
 }
 
-const showCaseDetail = (index) => {
-  detailCase.value = caseResults.value[index]
-}
-
-const compareCases = async () => {
-  if (selectedCases.value.length < 2) {
-    alert('请至少选择2个案例进行对比')
-    return
-  }
-
-  loading.value = true
-  
-  try {
-    const selected = selectedCases.value.map(i => caseResults.value[i])
-    const response = await api.post('/api/yuanqi/chat', {
-      message: `请对比分析以下类案与当前案件的相似度和差异点：\n\n当前案件：${searchParams.description}\n\n类案：\n${selected.map((c, i) => `${i + 1}. ${c.title}\n案号：${c.caseNumber}\n案情：${c.summary}\n裁判要点：${c.keyPoints}\n结果：${c.result}`).join('\n\n')}`,
-      history: []
-    })
-    
-    analysisResult.value = response.data.answer.replace(/\n/g, '<br>')
-  } catch (error) {
-    console.error('分析失败:', error)
-    analysisResult.value = '分析失败，请重试'
-  } finally {
-    loading.value = false
-  }
+const showCaseDetail = (caseItem) => {
+  detailCase.value = caseItem
 }
 </script>
 
@@ -383,11 +493,16 @@ const compareCases = async () => {
   margin-top: 60px;
   background: #f5f7fa;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-header {
   width: 100%;
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .page-title {
@@ -408,6 +523,8 @@ const compareCases = async () => {
   display: flex;
   gap: 24px;
   box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 左侧检索栏 */
@@ -416,10 +533,9 @@ const compareCases = async () => {
   background: #fff;
   border-radius: 12px;
   padding: 20px;
-  height: fit-content;
-  position: sticky;
-  top: 84px;
   flex-shrink: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
 }
 
 .sidebar-title {
@@ -468,11 +584,6 @@ const compareCases = async () => {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.field-input.textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
 .search-btn {
   display: flex;
   align-items: center;
@@ -512,23 +623,27 @@ const compareCases = async () => {
   to { transform: rotate(360deg); }
 }
 
-.current-case {
+.pagination-info {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
 }
 
-.current-case-title {
+.info-title {
   font-size: 13px;
   font-weight: 600;
   color: #4b5563;
   margin-bottom: 8px;
 }
 
-.current-case-content {
+.info-content {
   font-size: 13px;
   color: #374151;
   line-height: 1.6;
+}
+
+.info-content strong {
+  color: #3b82f6;
 }
 
 /* 右侧结果区 */
@@ -536,6 +651,9 @@ const compareCases = async () => {
   flex: 1;
   min-height: 600px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .empty-state,
@@ -548,6 +666,8 @@ const compareCases = async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 1;
+  min-height: 400px;
 }
 
 .empty-icon {
@@ -579,6 +699,13 @@ const compareCases = async () => {
 }
 
 /* 检索结果 */
+.results {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .results-header {
   display: flex;
   justify-content: space-between;
@@ -586,6 +713,7 @@ const compareCases = async () => {
   margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .results-count {
@@ -612,8 +740,21 @@ const compareCases = async () => {
   min-height: 36px;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   background: #e5e7eb;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.case-list-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  box-sizing: border-box;
 }
 
 .case-list {
@@ -668,9 +809,14 @@ const compareCases = async () => {
   color: #1f2937;
 }
 
-.case-date {
+.court-name {
   font-size: 13px;
   color: #9ca3af;
+}
+
+.case-date {
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .case-similarity {
@@ -707,9 +853,9 @@ const compareCases = async () => {
   font-weight: 500;
 }
 
-.court-name {
-  font-size: 13px;
-  color: #6b7280;
+.type-badge.cause {
+  background: #fef3c7;
+  color: #d97706;
 }
 
 .case-title {
@@ -753,32 +899,39 @@ const compareCases = async () => {
   color: #fff;
 }
 
-/* 相似度分析 */
-.analysis-section {
-  margin-top: 24px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.analysis-header {
-  margin-bottom: 16px;
-}
-
-.analysis-title {
+.pagination-controls {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
+  margin-top: 16px;
+  flex-shrink: 0;
 }
 
-.analysis-content {
-  font-size: 14px;
+.page-btn {
+  padding: 8px 16px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 8px;
   color: #374151;
-  line-height: 1.8;
+  font-size: 14px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #4b5563;
+  padding: 0 12px;
 }
 
 /* 弹窗 */
@@ -799,7 +952,7 @@ const compareCases = async () => {
 .modal-content {
   background: #fff;
   border-radius: 16px;
-  max-width: 800px;
+  max-width: 900px;
   width: 100%;
   max-height: 90vh;
   overflow: hidden;
@@ -875,18 +1028,27 @@ const compareCases = async () => {
   color: #374151;
   line-height: 1.7;
   margin: 0;
+  white-space: pre-wrap;
 }
 
-.judgment-text {
+.case-content {
   font-size: 14px;
   color: #374151;
   line-height: 1.8;
   background: #f9fafb;
   padding: 16px;
   border-radius: 8px;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   word-break: break-word;
+}
+
+.case-content :deep(em),
+.case-title :deep(em),
+.case-summary :deep(em) {
+  color: #dc2626 !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
 }
 
 /* 平板端适配 */
@@ -991,5 +1153,91 @@ const compareCases = async () => {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* 反馈对话框样式 */
+.feedback-modal {
+  max-width: 400px;
+}
+
+.feedback-modal .modal-body {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.feedback-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 20px;
+}
+
+.feedback-icon.success {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #059669;
+}
+
+.feedback-icon.error {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+}
+
+.feedback-icon.warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #d97706;
+}
+
+.feedback-icon.info {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #2563eb;
+}
+
+.feedback-message {
+  font-size: 16px;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+}
+
+.feedback-count {
+  font-size: 14px;
+  color: #4b5563;
+  background: #f3f4f6;
+  padding: 12px 20px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.feedback-count strong {
+  color: #3b82f6;
+  font-size: 18px;
+}
+
+.modal-footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.dialog-btn {
+  padding: 12px 32px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.dialog-btn.primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+}
+
+.dialog-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 </style>
